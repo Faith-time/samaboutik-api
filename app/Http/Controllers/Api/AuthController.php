@@ -7,41 +7,30 @@ use App\Models\Utilisateur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // Rôles qu'on peut choisir soi-même. « admin » ne s'obtient jamais depuis l'application.
-    private const ROLES_PUBLICS = ['commercant', 'client'];
-
+    // Le client n'a pas de compte : il paie avec son propre portefeuille.
+    // Toute inscription depuis l'application crée donc un commerçant.
+    // Le rôle « admin » ne s'obtient jamais depuis l'application.
     public function inscription(Request $request)
     {
         $data = $request->validate([
             'nom' => ['required', 'string', 'max:255'],
             'telephone' => ['required', 'string', 'max:20', 'unique:utilisateurs,telephone'],
             'mot_de_passe' => ['required', 'string', 'min:6'],
-            'role' => ['nullable', Rule::in(self::ROLES_PUBLICS)],
-            'nom_boutique' => [
-                Rule::requiredIf(fn () => ($request->input('role') ?? 'commercant') === 'commercant'),
-                'nullable', 'string', 'max:255',
-            ],
+            'nom_boutique' => ['required', 'string', 'max:255'],
         ]);
 
-        $role = $data['role'] ?? 'commercant';
-
-        $utilisateur = DB::transaction(function () use ($data, $role) {
+        $utilisateur = DB::transaction(function () use ($data) {
             $utilisateur = Utilisateur::create([
                 'nom' => $data['nom'],
                 'telephone' => $data['telephone'],
                 'mot_de_passe' => $data['mot_de_passe'],
             ]);
-            $utilisateur->assignRole($role);
-
-            // Seul le commerçant a une boutique
-            if ($role === 'commercant') {
-                $utilisateur->boutique()->create(['nom' => $data['nom_boutique']]);
-            }
+            $utilisateur->assignRole('commercant');
+            $utilisateur->boutique()->create(['nom' => $data['nom_boutique']]);
 
             return $utilisateur;
         });
@@ -54,7 +43,6 @@ class AuthController extends Controller
         $data = $request->validate([
             'telephone' => ['required', 'string'],
             'mot_de_passe' => ['required', 'string'],
-            'role' => ['nullable', Rule::in(self::ROLES_PUBLICS)],
         ]);
 
         $utilisateur = Utilisateur::where('telephone', $data['telephone'])->first();
@@ -62,14 +50,6 @@ class AuthController extends Controller
         if (! $utilisateur || ! Hash::check($data['mot_de_passe'], $utilisateur->mot_de_passe)) {
             throw ValidationException::withMessages([
                 'telephone' => ['Téléphone ou mot de passe incorrect.'],
-            ]);
-        }
-
-        // Si l'onglet « Commerçant » ou « Client » est choisi, le compte doit avoir ce rôle
-        if (! empty($data['role']) && ! $utilisateur->hasRole($data['role'])) {
-            $libelle = $data['role'] === 'client' ? 'client' : 'commerçant';
-            throw ValidationException::withMessages([
-                'telephone' => ["Ce compte n'est pas un compte {$libelle}."],
             ]);
         }
 
@@ -96,7 +76,7 @@ class AuthController extends Controller
         ], $code);
     }
 
-    // L'utilisateur avec sa boutique et un champ simple « role » (commercant | client | admin)
+    // L'utilisateur avec sa boutique et un champ simple « role » (commercant | admin)
     private function versTableau(Utilisateur $utilisateur): array
     {
         $utilisateur->load(['boutique', 'roles']);
