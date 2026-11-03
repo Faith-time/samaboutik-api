@@ -10,9 +10,12 @@ class LigneVente extends Model
     protected $table = 'lignes_vente';
     public $timestamps = false;
 
-    protected $fillable = ['vente_id', 'produit_id', 'nom_produit', 'prix_unitaire_fcfa', 'quantite'];
+    protected $fillable = [
+        'vente_id', 'produit_id', 'nom_produit', 'prix_unitaire_fcfa', 'cout_unitaire_fcfa', 'quantite',
+    ];
     protected $casts = [
         'prix_unitaire_fcfa' => 'integer',
+        'cout_unitaire_fcfa' => 'float',
         'quantite' => 'integer',
     ];
 

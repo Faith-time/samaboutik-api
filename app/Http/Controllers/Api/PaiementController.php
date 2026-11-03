@@ -53,8 +53,12 @@ class PaiementController extends Controller
 
             $vente->update(['statut' => 'payee']);
 
+            // Le stock baisse maintenant que le paiement est confirmé
+            app(\App\Services\StockService::class)->sortirPourVente($vente);
+
             return $paiement;
         });
+
 
         return response()->json($paiement, 201);
     }

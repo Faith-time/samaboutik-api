@@ -14,6 +14,7 @@ class PaiementService
     public function __construct(
         private LightningService $lightning,
         private PayDunyaService $paydunya,
+        private StockService $stock,
     ) {
     }
 
@@ -45,7 +46,7 @@ class PaiementService
         return $paiement->refresh();
     }
 
-    /** Marque le paiement payé et la vente payée (sans danger si appelé deux fois). */
+    /** Marque le paiement payé, la vente payée, et fait baisser le stock (sans danger si appelé deux fois). */
     public function regler(Paiement $paiement): void
     {
         DB::transaction(function () use ($paiement) {
@@ -56,6 +57,11 @@ class PaiementService
 
             $p->update(['statut' => 'paye', 'paye_le' => now()]);
             $p->vente()->where('statut', 'en_attente')->update(['statut' => 'payee']);
+
+            $vente = $p->vente()->first();
+            if ($vente && $vente->statut === 'payee') {
+                $this->stock->sortirPourVente($vente);
+            }
         });
     }
 }

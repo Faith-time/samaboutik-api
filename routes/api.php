@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\ApprovisionnementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\ProduitController;
 use App\Http\Controllers\Api\RapportIaController;
 use App\Http\Controllers\Api\RetraitController;
+use App\Http\Controllers\Api\StockController;
 use App\Http\Controllers\Api\TableauBordController;
 use App\Http\Controllers\Api\TauxChangeController;
 use App\Http\Controllers\Api\VenteController;
@@ -48,5 +50,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/rapport-ia', [RapportIaController::class, 'courant']);
         Route::get('/rapports-ia', [RapportIaController::class, 'index']);
         Route::get('/rapports-ia/{id}', [RapportIaController::class, 'show']);
+
+        Route::get('/stock', [StockController::class, 'index']);
+        Route::get('/classement', [StockController::class, 'classement']);
+        Route::post('/produits/{id}/stock/correction', [StockController::class, 'correction']);
+
+        Route::get('/approvisionnements', [ApprovisionnementController::class, 'index']);
+        Route::post('/approvisionnements', [ApprovisionnementController::class, 'store']);
+
     });
 });

@@ -59,15 +59,16 @@ class TableauBordController extends Controller
                 'total_sats' => $m->total_sats !== null ? (int) $m->total_sats : null,
             ])->values();
 
-        // Bénéfice estimé (seulement si des prix d'achat sont renseignés)
+        // Bénéfice réel : (prix de vente - coût du moment) x quantité, sur les 30 derniers jours
+        $coutSql = 'COALESCE(lignes_vente.cout_unitaire_fcfa, produits.cout_moyen_fcfa, produits.cout_fcfa)';
         $b = DB::table('lignes_vente')
             ->join('ventes', 'ventes.id', '=', 'lignes_vente.vente_id')
-            ->join('produits', 'produits.id', '=', 'lignes_vente.produit_id')
+            ->leftJoin('produits', 'produits.id', '=', 'lignes_vente.produit_id')
             ->where('ventes.boutique_id', $boutiqueId)
             ->where('ventes.statut', 'payee')
             ->where('ventes.cree_le', '>=', $debut30j)
-            ->whereNotNull('produits.cout_fcfa')
-            ->selectRaw('SUM((lignes_vente.prix_unitaire_fcfa - produits.cout_fcfa) * lignes_vente.quantite) as b')
+            ->whereRaw("$coutSql IS NOT NULL")
+            ->selectRaw("SUM((lignes_vente.prix_unitaire_fcfa - $coutSql) * lignes_vente.quantite) as b")
             ->value('b');
 
         return response()->json([
