@@ -50,17 +50,17 @@ class DemoSeeder extends Seeder
         DB::table('retraits')->where('boutique_id', $boutiqueId)->delete();
         DB::table('rapports_ia')->where('boutique_id', $boutiqueId)->delete();
 
-        // ---------- 3. Produits ----------
         $catalogue = [
-            ['Biscuits',        500,  350, true],
-            ['Jus de bissap',  1000,  600, true],
-            ['Café Touba',      200,  120, true],
-            ['Riz 1 kg',        600,  480, true],
-            ['Huile 1 L',      1500, 1250, true],
-            ['Sucre 1 kg',      800,  650, true],
-            ['Savon',           350,  250, true],
-            ['Eau minérale',    500,  300, true],
-            ['Lait en poudre', 2500, 2100, false], // produit désactivé
+            // nom, prix de vente, coût d'une unité, actif
+            ['Biscuits crème',     150,  100, true],
+            ['Jus de bissap',      300,  200, true],
+            ['Café Touba',         200,  140, true],
+            ['Riz brisé 1 kg',     350,  270, true],
+            ['Huile 1 L',         1100, 1000, true],
+            ['Sucre 1 kg',         600,  560, true],
+            ['Savon',              250,  190, true],
+            ['Eau minérale 1,5 L', 400,  250, true],
+            ['Lait en poudre',    2500, 2200, false],
         ];
 
         $produits = [];

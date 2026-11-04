@@ -32,6 +32,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Réservé aux commerçants (ils ont une boutique)
     Route::middleware('role:commercant')->group(function () {
         Route::apiResource('produits', ProduitController::class);
+        Route::post('produits/{id}/image', [ProduitController::class, 'televerserImage']);
+        Route::delete('produits/{id}/image', [ProduitController::class, 'supprimerImage']);
 
         Route::get('/ventes', [VenteController::class, 'index']);
         Route::post('/ventes', [VenteController::class, 'store']);

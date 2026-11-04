@@ -26,7 +26,7 @@ class RapportIaController extends Controller
 
     /** Analyse construite à partir des vraies données : ventes, marges et stock des 30 derniers jours. */
     public function courant(Request $request)
-    {
+    {$duree =
         $boutiqueId = DB::table('boutiques')
             ->where('utilisateur_id', $request->user()->id)->value('id');
         $debut = now()->subDays(29)->startOfDay();
@@ -76,7 +76,8 @@ class RapportIaController extends Controller
                     . ($x['rang'] ? " C'est votre n°{$x['rang']} des ventes : rachetez-le vite pour ne pas perdre de ventes." : ' Rachetez-le si vous voulez continuer à le vendre.');
             } else {
                 $duree = $x['jours'] !== null ? " (environ {$x['jours']} jour" . ($x['jours'] > 1 ? 's' : '') . ' de ventes)' : '';
-                $conseils[] = "Il reste {$p->stock_actuel} {$p->nom}{$duree}. Pensez à le racheter.";
+                $unites = $p->stock_actuel . ' unité' . ($p->stock_actuel > 1 ? 's' : '');
+                $conseils[] = "{$p->nom} : il ne reste que {$unites}{$duree}. Pensez à le racheter.";
             }
         }
 

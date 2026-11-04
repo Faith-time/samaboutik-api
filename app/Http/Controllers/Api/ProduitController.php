@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProduitController extends Controller
 {
@@ -76,8 +77,51 @@ class ProduitController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $request->user()->boutique->produits()->findOrFail($id)->delete();
+        $produit = $request->user()->boutique->produits()->findOrFail($id);
+        $image = $produit->image_path;
+        $produit->delete();
+        if ($image) {
+            Storage::disk('public')->delete($image);
+        }
 
         return response()->noContent();
+    }
+
+    /** Ajoute ou remplace la photo d'un produit (multipart, champ « image »). */
+    public function televerserImage(Request $request, $id)
+    {
+        $produit = $request->user()->boutique->produits()->findOrFail($id);
+
+        $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'], // 5 Mo
+        ], [
+            'image.image' => 'Le fichier choisi n\'est pas une image.',
+            'image.mimes' => 'Formats acceptés : JPG, PNG ou WebP.',
+            'image.max' => 'L\'image est trop lourde (5 Mo maximum).',
+            'image.uploaded' => 'L\'image n\'a pas pu être envoyée (trop lourde pour le serveur).',
+        ]);
+
+        $ancienne = $produit->image_path;
+        $chemin = $request->file('image')->store('produits', 'public'); // nom aléatoire
+        $produit->update(['image_path' => $chemin]);
+
+        if ($ancienne) {
+            Storage::disk('public')->delete($ancienne);
+        }
+
+        return $produit->refresh();
+    }
+
+    /** Retire la photo d'un produit. */
+    public function supprimerImage(Request $request, $id)
+    {
+        $produit = $request->user()->boutique->produits()->findOrFail($id);
+
+        if ($produit->image_path) {
+            Storage::disk('public')->delete($produit->image_path);
+            $produit->update(['image_path' => null]);
+        }
+
+        return $produit->refresh();
     }
 }

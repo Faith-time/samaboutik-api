@@ -12,7 +12,7 @@ class Produit extends Model
     const UPDATED_AT = 'modifie_le';
 
     protected $fillable = [
-        'boutique_id', 'nom', 'prix_fcfa', 'cout_fcfa', 'cout_moyen_fcfa', 'actif',
+        'boutique_id', 'nom', 'image_path', 'prix_fcfa', 'cout_fcfa', 'cout_moyen_fcfa', 'actif',
         'unites_par_lot', 'stock_actuel', 'seuil_alerte', 'suivre_stock',
     ];
     protected $casts = [
@@ -26,7 +26,17 @@ class Produit extends Model
         'suivre_stock' => 'boolean',
     ];
     // Ces champs calculés sont ajoutés automatiquement au JSON
-    protected $appends = ['statut_stock', 'lots_restants', 'seuil_effectif'];
+    protected $appends = ['statut_stock', 'lots_restants', 'seuil_effectif', 'image_url'];
+
+    // Le chemin interne n'est pas exposé : l'application reçoit image_url
+    protected $hidden = ['image_path'];
+
+    // URL complète de l'image (null si le produit n'a pas de photo).
+    // url() reprend l'adresse utilisée par le téléphone (ex. http://192.168.1.61:8000), donc pas de souci avec APP_URL.
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? url('storage/'.$this->image_path) : null;
+    }
 
     public function boutique(): BelongsTo
     {

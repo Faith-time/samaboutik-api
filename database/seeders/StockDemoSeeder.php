@@ -14,16 +14,15 @@ class StockDemoSeeder extends Seeder
     {
         $now = Carbon::now();
 
-        // unités par paquet, et stock qu'il doit rester aujourd'hui (pour avoir des alertes variées)
         $reglages = [
-            'Biscuits' => [24, 30],
-            'Jus de bissap' => [12, 10],   // bas
-            'Café Touba' => [50, 0],       // épuisé
-            'Riz 1 kg' => [25, 40],
-            'Huile 1 L' => [12, 4],        // bas
-            'Sucre 1 kg' => [20, 18],
+            'Biscuits crème' => [24, 30],
+            'Jus de bissap' => [24, 10],        // bas
+            'Café Touba' => [50, 0],            // épuisé
+            'Riz brisé 1 kg' => [50, 120],      // sac de 50 kg
+            'Huile 1 L' => [12, 4],             // bas (carton de 12)
+            'Sucre 1 kg' => [50, 80],           // sac de 50 kg
             'Savon' => [36, 55],
-            'Eau minérale' => [6, 14],
+            'Eau minérale 1,5 L' => [6, 14],    // pack de 6
         ];
 
         foreach (DB::table('boutiques')->pluck('id') as $boutiqueId) {
