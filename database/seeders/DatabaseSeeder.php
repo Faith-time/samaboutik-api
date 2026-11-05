@@ -9,7 +9,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class, // toujours en premier
+            RoleSeeder::class,
             DemoSeeder::class,
             ProduitImageSeeder::class,
         ]);
