@@ -1,4 +1,173 @@
-<div align="center">
+# SamaBoutik – BACKEND LARAVEL
+
+SamaBoutik est une application mobile pour les petits commerçants du Sénégal. Ce dépôt contient son **API**, écrite avec Laravel : c’est elle qui gère les comptes, les produits, le stock, les ventes et les paiements (espèces, mobile money avec PayDunya, Bitcoin Lightning avec LNbits).
+
+- API en ligne : https://samaboutik.alwaysdata.net/api
+- Pour vérifier qu’elle répond : https://samaboutik.alwaysdata.net/api/ping
+- Application mobile (Flutter) : https://github.com/Faith-time/samaboutik-app
+
+## Ce que fait l’API
+
+- Création de compte et connexion avec un numéro de téléphone et un mot de passe.
+- Gestion des produits, avec photo, prix de vente et prix d’achat.
+- Suivi du stock en unités et en paquets, avec un seuil d’alerte, et enregistrement des achats de marchandises.
+- Création des ventes avec plusieurs produits, historique et annulation.
+- Paiement en espèces, par mobile money (Wave, Orange Money, Free Money) ou en Bitcoin Lightning.
+- Tableau de bord, classement des produits (par jour, semaine, mois ou année) et analyse avec des conseils.
+- Retraits en FCFA, mais simulés : aucun argent réel ne bouge.
+
+## Technologies utilisées
+
+PHP 8.3 ou plus (8.4 sur le serveur), Laravel 13, Laravel Sanctum pour la connexion, spatie/laravel-permission pour les rôles, MySQL, LNbits pour le Bitcoin Lightning, PayDunya pour le mobile money, CoinGecko pour le cours du Bitcoin. Hébergement sur alwaysdata (offre gratuite).
+
+## Les routes de l’API
+
+Toutes les routes commencent par `/api`. Les requêtes protégées demandent l’en-tête `Authorization: Bearer <jeton>`, que l’on reçoit en se connectant.
+
+- **Sans connexion** : `GET /ping`, `POST /inscription`, `POST /connexion`, et les deux webhooks (`POST /webhooks/lightning` et `POST /webhooks/paydunya`).
+- **Compte** : `POST /deconnexion`, `GET /moi`.
+- **Produits** : `GET`, `POST`, `PUT` et `DELETE` sur `/produits`, plus `POST` et `DELETE` sur `/produits/{id}/image` pour la photo.
+- **Stock** : `GET /stock`, `POST /produits/{id}/stock/correction`, `GET /classement`, et `GET` / `POST` sur `/approvisionnements`.
+- **Ventes** : `GET` / `POST` sur `/ventes`, `GET /ventes/{id}`, `POST /ventes/{id}/annuler`.
+- **Paiements** : `POST /ventes/{id}/paiements/especes`, `.../lightning` et `.../mobile`, puis `GET /paiements/{id}` pour suivre le statut.
+- **Autres** : `GET /tableau-de-bord`, `GET /taux-change`, `GET /rapport-ia`, `GET /rapports-ia`, `GET /retraits`, `POST /retraits`.
+
+La liste complète (39 routes) s’obtient avec `php artisan route:list`.
+
+## Comment marchent les paiements
+
+**Bitcoin Lightning.** Quand le commerçant choisit Bitcoin, l’API convertit le montant en FCFA en euros (avec la parité fixe 655,957), puis en satoshis grâce au cours du Bitcoin récupéré chez CoinGecko. Elle ajoute une petite marge de sécurité de 0,5 %, puis demande à LNbits de créer une facture valable 5 minutes. L’application affiche cette facture sous forme de QR code. Quand le client paie, LNbits prévient l’API par un webhook et la vente passe à « payée ». Si les 5 minutes sont dépassées, on recrée une facture au cours du moment.
+
+Le webhook est protégé par un secret que l’on invente soi-même (par exemple avec `openssl rand -hex 32`) et que l’on met dans `LIGHTNING_WEBHOOK_SECRET`. Attention : `demo.lnbits.com` est un serveur de démonstration, parfait pour un prototype mais pas pour de vrais clients.
+
+**Mobile money.** L’API crée une facture chez PayDunya et garde l’adresse de la page de paiement. L’application ouvre cette page, le client paie, puis PayDunya prévient l’API par son webhook. Pour l’instant on est en **mode test** : aucun vrai paiement n’a lieu.
+
+## Installer le projet chez soi
+
+Il faut PHP 8.3 ou plus, Composer, MySQL et Git (j’utilise Laragon sous Windows).
+
+```bash
+git clone https://github.com/Faith-time/samaboutik-api.git
+cd samaboutik-api
+
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Créez une base MySQL (par exemple `samaboutik`), renseignez les lignes `DB_` du fichier `.env`, puis :
+
+```bash
+php artisan migrate
+php artisan storage:link
+php artisan serve
+```
+
+L’API répond alors sur http://localhost:8000/api/ping. Depuis un émulateur Android, on l’atteint avec `http://10.0.2.2:8000/api`. Pour les tests : `composer test`.
+
+## Le fichier .env
+
+Copiez `.env.example` vers `.env` et ne publiez jamais ce fichier sur GitHub. Les réglages importants :
+
+- `APP_ENV=production`, `APP_DEBUG=false` et `APP_URL=https://samaboutik.alwaysdata.net` en production.
+- `APP_TIMEZONE=Africa/Dakar` et `APP_LOCALE=fr`.
+- `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` : les informations de la base fournies par alwaysdata.
+- `SESSION_DRIVER=database` (il faut alors la table `sessions`) ou `file`, et `QUEUE_CONNECTION=sync`.
+- `LIGHTNING_API_URL`, `LIGHTNING_API_KEY` (la clé « Invoice/read key » de LNbits, pas l’Admin key), `LIGHTNING_WEBHOOK_SECRET`, `LIGHTNING_EXPIRATION_MINUTES=5`.
+- `SATS_SAFETY_MARGIN_PERCENT=0.5`, `XOF_PER_EUR=655.957`, `RATE_API_URL`, `RATE_CACHE_SECONDS=60`.
+- `PAYDUNYA_MASTER_KEY`, `PAYDUNYA_PRIVATE_KEY`, `PAYDUNYA_PUBLIC_KEY`, `PAYDUNYA_TOKEN` et `PAYDUNYA_MODE=test`.
+
+Après chaque changement du `.env` sur le serveur, lancez `php artisan config:cache`.
+
+## Mise en ligne sur alwaysdata
+
+J’ai choisi alwaysdata parce que c’est gratuit, sans carte bancaire, et que le site ne s’endort pas : pour un jury, une API qui met du temps à se réveiller ressemblerait à un bug.
+
+1. **Compte et base.** Créez un compte (offre gratuite), puis une base MySQL dans *Bases de données → MySQL*. Activez aussi l’accès **SSH** dans *Utilisateurs*. Avec phpMyAdmin, importez votre base locale si vous voulez garder des données de démonstration.
+
+2. **Réglage du site.** Dans *Web → Sites*, modifiez votre site : type **PHP**, version 8.3 ou 8.4. Pour le répertoire racine, le champ commence déjà par `/home/votre-compte/` : écrivez seulement `samaboutik-api/public/`. Si vous retapez tout le chemin, il sera doublé et le site ne trouvera rien.
+
+3. **Récupérer le code** en SSH :
+
+```bash
+ssh samaboutik@ssh-samaboutik.alwaysdata.net
+cd /home/samaboutik
+git clone https://github.com/Faith-time/samaboutik-api.git samaboutik-api
+cd samaboutik-api
+composer install --no-dev --optimize-autoloader
+```
+
+4. **Préparer le `.env`** : `cp .env.example .env`, puis `nano .env` pour remplir les valeurs ci-dessus (Ctrl+O pour enregistrer, Ctrl+X pour quitter).
+
+5. **Initialiser Laravel** :
+
+```bash
+php artisan key:generate
+php artisan migrate:status
+php artisan storage:link
+php artisan optimize:clear
+php artisan config:cache
+```
+
+Toutes les migrations doivent afficher « Ran ». Ne lancez pas `db:seed` sur une base déjà importée, vous auriez des doublons. Je n’utilise pas `route:cache` : une de mes routes (`/ping`) est écrite avec une fonction, et Laravel ne sait pas la mettre en cache.
+
+6. **Tester** : ouvrez https://samaboutik.alwaysdata.net/api/ping, vous devez voir `{"message":"SamaBoutik API OK"}`. Vérifiez aussi que le serveur peut joindre l’extérieur, car c’est indispensable pour Lightning, PayDunya et le cours du Bitcoin :
+
+```bash
+curl -sI https://demo.lnbits.com | head -1
+curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur"
+curl -sI https://app.paydunya.com | head -1
+```
+
+7. **Photos des produits** : copiez le contenu de `storage/app/public` de votre ordinateur vers le même dossier sur le serveur (par exemple avec FileZilla, en SFTP sur `ssh-samaboutik.alwaysdata.net`, port 22).
+
+8. **Webhooks** à déclarer chez les fournisseurs :
+   - LNbits : `https://samaboutik.alwaysdata.net/api/webhooks/lightning`
+   - PayDunya : `https://samaboutik.alwaysdata.net/api/webhooks/paydunya`
+
+## Mettre à jour la version en ligne
+
+Après un `git push` depuis mon ordinateur :
+
+```bash
+ssh samaboutik@ssh-samaboutik.alwaysdata.net
+cd /home/samaboutik/samaboutik-api
+git pull
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+```
+
+Les téléphones qui ont déjà l’application en profitent tout de suite, sans réinstaller. En revanche, il faut garder les routes déjà utilisées par l’APK publié. Pour lire les erreurs : `tail -n 50 storage/logs/laravel.log`.
+
+## Les problèmes que j’ai rencontrés
+
+- **« Access denied for user » au premier `migrate:status`** : les identifiants MySQL du `.env` étaient faux. Il fallait reprendre ceux créés dans alwaysdata.
+- **Erreur 500 sur le site** avec le message « Table sessions doesn’t exist » : j’avais `SESSION_DRIVER=database` mais la base importée n’avait pas cette table. Solution : `php artisan make:session-table` puis `php artisan migrate --force`. On peut aussi passer à `SESSION_DRIVER=file`, puisque l’API utilise des jetons et pas des sessions.
+- **« Could not open input file: artisan »** : j’étais dans le mauvais dossier. Il faut faire `cd /home/samaboutik/samaboutik-api` avant les commandes `php artisan`.
+
+Mon conseil pour comprendre une erreur 500 : lire d’abord le message principal dans le journal avec `grep -n -B 3 -A 2 "SQLSTATE" storage/logs/laravel.log | tail -n 20`, plutôt que la fin de la longue liste d’appels.
+
+## Sécurité
+
+- Le `.env` n’est jamais sur GitHub, seulement le `.env.example`.
+- Les clés ont été régénérées pour la production (`APP_KEY`, secret du webhook, clés LNbits et PayDunya).
+- `APP_DEBUG=false` en production, et tout passe en HTTPS.
+- Les mots de passe sont hachés, les jetons de connexion aussi.
+- Je n’utilise que la clé « Invoice/read key » de LNbits, jamais l’Admin key.
+
+## Ce qui est en test ou simulé
+
+- Le Bitcoin Lightning fonctionne de bout en bout, mais avec un serveur LNbits de démonstration.
+- PayDunya est en mode test (clés « sandbox ») : aucun argent réel.
+- Les retraits en FCFA sont simulés.
+- L’hébergement gratuit (256 Mo de RAM) convient à une démonstration, pas à beaucoup d’utilisateurs en même temps.
+- Pas de tâches en arrière-plan : `QUEUE_CONNECTION=sync`.
+
+Pistes pour la suite : un LNbits hébergé par mes soins, PayDunya en production, de vrais retraits mobile money, des notifications et un hébergement plus costaud.
+
+Auteure : [@Faith-time](https://github.com/Faith-time)<div align="center">
 
 # SamaBoutik — API Backend
 
